@@ -14,8 +14,9 @@ T_token <- create_token(app = "rtweet_token",
 # Get tweets from user timeline
 rt <- get_timeline(user = "LeftCoast70s", n = 10000, token = T_token)
 
-# Parse tweets to get playlist
+# Parse tweets to get playlist (duplicates are removed)
 tlist <- gsub(x = rt$text, pattern = '♬ *(.*?) ♬.*', replacement = "\\1") 
+tlist <- unique(tlist)
 tlist.artist <- sub(x=tlist, pattern = '(.*?) - .*', replacement = "\\1")
 tlist.song  <- sub(x=tlist, pattern = '.* - (.*?)', replacement = "\\1")
 

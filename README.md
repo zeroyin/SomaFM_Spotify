@@ -21,4 +21,4 @@ Notes for myself while coding:
 5. The R package Rspotify include functions that ONLY reads information from Spotify. Still it makes some things easy as I only have to write three functions myself that modifies playlists. 
 6. It is important to note that "Rspotify" only have READ authorizations. I needed to override the existing authorization and add playlist-modify scopes.
 7. Search by song name first and match with artist then. If no match, try removing strange symbols and removing contents within parenthesis such as (LP Version). If still no match, skip it.
-8. With the Twitter API I can only get 3200 tweets which ended up around 570 tracks after removing duplicates. This is enough for me so I did not try to get older tweets.
+8. With the Twitter API I can only get 3200 tweets which ended up around 570 tracks after removing duplicates and around 500 can be found on Spotify.

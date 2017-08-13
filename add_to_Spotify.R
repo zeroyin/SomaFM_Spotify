@@ -1,61 +1,116 @@
+# Add tracks to playlist on Spotify
+# Reference for queries: https://developer.spotify.com/web-api/
+# Based on Rspotify package
+# Some self-defined functions to modify playlists
+################################################
 rm(list = ls())
 setwd("~/Dropbox/My_Projects/SomaFM_to_Spotify/")
 library(Rspotify)
+library(httr)
+options(stringsAsFactors = F)
 
-
-# Spotify access token:
-# POST query to create playlist: https://developer.spotify.com/web-api/create-playlist/
-# Note: Need to authorize 'playlist-modify' in scope!
-Spotify_token = oauth2.0_token(oauth_endpoint(authorize = "https://accounts.spotify.com/authorize", 
-                                              access = "https://accounts.spotify.com/api/token"), 
-                               oauth_app(appname = "rspotify_token", 
-                                         key = "f885778620984715aaa0eaf0ea6fbfec",
-                                         secret = "995d5968e40b4686a3ffcaf4111a5dd1"),
-                               scope = 'playlist-read-private playlist-read-collaborative playlist-modify-public playlist-modify-private')
-
-create_playlist <- function(playlist_url,playlist_name){
-    # Function to create a new playlist
-    query <- POST(url = playlist_url,
-                  config = add_headers(Authorization= paste('Bearer',Spotify_token$credentials$access_token), 
+################################################
+# Utility functions
+################################################
+#' Function to create a new playlist
+create_playlist <- function(user_id, playlist_name, token){
+    endpoint <-  "https://api.spotify.com/v1/users/"
+    url <- paste0(endpoint, user_id,"/playlists")
+    query <- POST(url = url,
+                  config = add_headers(Authorization= paste('Bearer',token), 
                                        'Content-Type' = "application/json"), 
                   body=list(name=playlist_name),
                   encode='json')
     return(content(query))
 }
 
-add_tracks <- function(user_id, playlist_id, track_url, track_id){
-    # Function to add tracks to a playlist (track_id is the spotify URI)
-    query <- POST(url = track_url,
-                  config = add_headers(Authorization= paste('Bearer',Spotify_token$credentials$access_token), 
+#' Function to add a track to a playlist 
+add_tracks <- function(user_id, playlist_id, track_id, token){
+    endpoint <- "https://api.spotify.com/v1/users/"
+    url <- paste0(endpoint, user_id, "/playlists/", playlist_id, "/tracks")
+    query <- POST(url = url,
+                  config = add_headers(Authorization = paste('Bearer',token), 
                                        'Content-Type' = "application/json"), 
-                  body=list(track_id),
+                  body=list(paste0("spotify:track:",track_id)),
                   encode='json')
     return(content(query))
 }
 
-
-
-
-user_id <- "zeroyin"
-playlist_name <- "Left Coast 70s by SomaFM"
-playlist_url <- paste0("https://api.spotify.com/v1/users/",user_id,"/playlists")
-all_list <- getPlaylist(name = user_id, token = Spotify_token)
-# Create playlist if not exist: e.g. "Left Coast 70s by SomaFM"
-if (!is.element(playlist_name, all_list$name)){ 
-    create_playlist(playlist_url, playlist_name)
+#' Function to search for a track using artist and song names
+#' returns track_id of the most relevant search result
+#' uri = spotify:track:track_id
+search_track <- function(artist, song, token){
+    endpoint <- "https://api.spotify.com/v1/search?q="
+    url <- paste0(endpoint, gsub(' ', '+', paste(song, artist)), "&type=track")
+    match_song <- url %>% 
+        GET(config = add_headers(Authorization = paste('Bearer',token))) %>%
+        content %>% 
+        with(tracks$items) 
+    match_artist <- match_song %>%
+        sapply(FUN = function(x){with(x$artists[[1]],name)}) %>%
+        pmatch(artist,.)
+    track_id <- match_song[[match_artist]]$id
+    return(track_id)
 }
 
-playlist_id <- all_list$id[match(playlist_name, all_list$name)]
-track_url <- paste0("https://api.spotify.com/v1/users/", user_id, "/playlists/", playlist_id, "/tracks")
-all_track <- getPlaylistSongs(ownerid = user_id, playlistid = playlist_id, token = Spotify_token)
 
-# Remove repeating tracks
-#
-#   TO BE ADDED
-#
-#
+################################################
+# Main
+################################################
 
-# Transform track list to track id list
-track_id <- "spotify:track:4iV5W9uYEdYUVa79Axb7Rh, spotify:track:1301WleyT98MSxVHPZCA6M"
+# Spotify access token:
+# Note: Need authorization of 'playlist-modify' in scope;
+# default in Rspotify package is 'playlist-read'
+S_token = oauth2.0_token(oauth_endpoint(authorize = "https://accounts.spotify.com/authorize",
+                                        access = "https://accounts.spotify.com/api/token"),
+                         oauth_app(appname = "rspotify_token", 
+                                   key = "f885778620984715aaa0eaf0ea6fbfec",
+                                   secret = "995d5968e40b4686a3ffcaf4111a5dd1"),
+                         scope = paste("playlist-read-private",
+                                       "playlist-read-collaborative",
+                                       "playlist-modify-public",
+                                       "playlist-modify-private"))
+# S_token$refresh() # Refresh token if expired
+
+# Playlist to be created
+user_id <- "zeroyin"
+playlist_name <- "Left Coast 70s by SomaFM"
+
+# Create playlist if not existent
+if (!is.element(playlist_name, getPlaylist(user_id, token = S_token)$name)){ 
+    create_playlist(user_id, playlist_name, S_token$credentials$access_token)
+}
+all_lists <- getPlaylist(user_id, token = S_token)
+playlist_id <- all_lists$id[match(playlist_name, all_lists$name)]
+
+# Import playlist data
+load(file = "playlist.RData")
+
 # Add tracks to the playlist
-add_tracks(user_id, playlist_id, track_url, track_id)
+for(itrack in 1:length(playlist$song)){
+    # Search by artist and song name
+    artist <- playlist$artist[itrack]
+    song <- playlist$song[itrack]
+    track_id <- search_track(artist, song, S_token$credentials$access_token)
+    # If search returns NULL, try this:
+    if(is.null(track_id)){
+        artist <-  sub("&amp;", "&", x = playlist$artist[itrack])
+        song <- sub(' \\(.*\\)', '', x = playlist$song[itrack])
+        track_id <- search_track(artist, song, S_token$credentials$access_token)
+    }
+    # Add tracks to the playlist if search successful
+    if(is.null(track_id)){
+        cat(paste("Not found on Spotify:", artist, "-", song, "\n"))
+        next
+    }else if(is.element(track_id, getPlaylistSongs(user_id, playlist_id, token = S_token)$id)){ 
+        cat(paste("Already in playlist:", artist, "-", song, "\n"))
+        next
+    }else{
+        cat(paste("Added to playlist:", artist, "-", song, "\n"))
+        add_tracks(user_id, playlist_id, track_id, S_token$credentials$access_token)
+    }
+}
+
+
+
+

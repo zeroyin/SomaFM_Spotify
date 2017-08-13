@@ -50,6 +50,7 @@ search_track <- function(artist, song, token){
         sapply(FUN = function(x){with(x$artists[[1]],name)}) %>%
         pmatch(artist,.)
     track_id <- match_song[[match_artist]]$id
+    if(length(track_id)>1){track_id = track_id[1]}
     return(track_id)
 }
 
@@ -86,6 +87,9 @@ playlist_id <- all_lists$id[match(playlist_name, all_lists$name)]
 # Import playlist data
 load(file = "playlist.RData")
 
+# Keep track of process
+status <- rep(NA, length(playlist$song))
+
 # Add tracks to the playlist
 for(itrack in 1:length(playlist$song)){
     # Search by artist and song name
@@ -100,17 +104,21 @@ for(itrack in 1:length(playlist$song)){
     }
     # Add tracks to the playlist if search successful
     if(is.null(track_id)){
+        status[itrack] <- "Not Found"
         cat(paste("Not found on Spotify:", artist, "-", song, "\n"))
         next
     }else if(is.element(track_id, getPlaylistSongs(user_id, playlist_id, token = S_token)$id)){ 
+        status[itrack] <- "Duplicate"
         cat(paste("Already in playlist:", artist, "-", song, "\n"))
         next
     }else{
+        status[itrack] <- "Success"
         cat(paste("Added to playlist:", artist, "-", song, "\n"))
         add_tracks(user_id, playlist_id, track_id, S_token$credentials$access_token)
     }
 }
 
+table(status)
 
 
 

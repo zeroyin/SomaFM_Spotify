@@ -7,6 +7,7 @@ rm(list = ls())
 setwd("~/Dropbox/My_Projects/SomaFM_to_Spotify/")
 library(Rspotify)
 library(httr)
+library(dplyr)
 options(stringsAsFactors = F)
 
 ################################################
@@ -54,6 +55,32 @@ search_track <- function(artist, song, token){
     return(track_id)
 }
 
+#' Function to get all track_ids from a playlist 
+#' Spotify API only allows 100 maximum in one query
+get_tracks_playlist <- function(user_id, playlist_id, token, S_token){
+    # An empty list to store all track_ids
+    all_track_id <- character()
+    # Total number of tracks currently in the playlist
+    all_lists <- getPlaylist(user_id, token = S_token)
+    num_tracks <- all_lists$tracks[match(playlist_id, all_lists$id)]
+    # Need several loops to retrieve all tracks because of the limit
+    endpoint <- "https://api.spotify.com/v1/users/"
+    for(iloop in 0:floor(num_tracks/100)){
+        offset <- iloop*100
+        url <- paste0(endpoint, user_id, "/playlists/", playlist_id, 
+                      "/tracks?&limit=100&offset=", offset)
+        id_loop <- url %>% 
+            GET(config = add_headers(Authorization = paste('Bearer',token))) %>%
+            content %>%
+            with(items) %>%
+            sapply(FUN = function(x) x$track$id)
+        all_track_id <- c(all_track_id, id_loop)
+    }
+    return(all_track_id)
+}
+
+#' Better write another function to substitute getPlaylist
+#' to integrate uses of S_token and token and get dependent from Rspotify
 
 ################################################
 # Main
@@ -71,7 +98,10 @@ S_token = oauth2.0_token(oauth_endpoint(authorize = "https://accounts.spotify.co
                                        "playlist-read-collaborative",
                                        "playlist-modify-public",
                                        "playlist-modify-private"))
-# S_token$refresh() # Refresh token if expired
+S_token$refresh() # Refresh token if expired
+
+# Access token
+access_token <- S_token$credentials$access_token
 
 # Playlist to be created
 user_id <- "zeroyin"
@@ -79,7 +109,7 @@ playlist_name <- "Left Coast 70s by SomaFM"
 
 # Create playlist if not existent
 if (!is.element(playlist_name, getPlaylist(user_id, token = S_token)$name)){ 
-    create_playlist(user_id, playlist_name, S_token$credentials$access_token)
+    create_playlist(user_id, playlist_name, access_token)
 }
 all_lists <- getPlaylist(user_id, token = S_token)
 playlist_id <- all_lists$id[match(playlist_name, all_lists$name)]
@@ -95,26 +125,26 @@ for(itrack in 1:length(playlist$song)){
     # Search by artist and song name
     artist <- playlist$artist[itrack]
     song <- playlist$song[itrack]
-    track_id <- search_track(artist, song, S_token$credentials$access_token)
+    track_id <- search_track(artist, song, access_token)
     # If search returns NULL, try this:
     if(is.null(track_id)){
         artist <-  sub("&amp;", "&", x = playlist$artist[itrack])
         song <- sub(' \\(.*\\)', '', x = playlist$song[itrack])
-        track_id <- search_track(artist, song, S_token$credentials$access_token)
+        track_id <- search_track(artist, song, access_token)
     }
     # Add tracks to the playlist if search successful
     if(is.null(track_id)){
         status[itrack] <- "Not Found"
         cat(paste("Not found on Spotify:", artist, "-", song, "\n"))
         next
-    }else if(is.element(track_id, getPlaylistSongs(user_id, playlist_id, token = S_token)$id)){ 
+    }else if(is.element(track_id, get_tracks_playlist(user_id, playlist_id, access_token, S_token))){ 
         status[itrack] <- "Duplicate"
         cat(paste("Already in playlist:", artist, "-", song, "\n"))
         next
     }else{
         status[itrack] <- "Success"
         cat(paste("Added to playlist:", artist, "-", song, "\n"))
-        add_tracks(user_id, playlist_id, track_id, S_token$credentials$access_token)
+        add_tracks(user_id, playlist_id, track_id, access_token)
     }
 }
 

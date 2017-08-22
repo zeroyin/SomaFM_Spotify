@@ -50,3 +50,47 @@ wordcloud(t_freq$artist, t_freq$n,
           rot.per = 0,
           colors = col)
 dev.off()
+
+
+################################################
+# Histogram by occurance: most songs played 8 times
+tlist %>% 
+    group_by(artist, song) %>% 
+    summarise(Occurrence = n()) -> t_occur
+
+ggplot(data = t_occur) +
+    geom_bar(aes(x = Occurrence), stat = "count", fill = "grey") +
+    theme_bw() -> p3
+ggsave(filename = "Occurrence_hist.pdf",
+       plot = p3, dpi = 100, width = 8, height = 6)
+
+# DJ's fav list
+t_occur %>%
+    filter(Occurrence >= 8)
+
+################################################
+# Song length analysis
+# Note: data are the interval length between two songs, based on the assumption 
+# that the songs are played continuosly without skipping etc.
+# Reliable song length data can be collected from song matching on Spotify
+tlist %>% 
+    filter(len > 0) %>% # <- filter out songs with len = 0
+    group_by(artist, song) %>% 
+    summarise(freq = n(), mlen= mean(len), min= min(len), max= max(len), diff = max(len)-min(len)) %>% 
+    arrange(desc(freq)) %>%
+    filter(diff < 60) %>% # <- filter out songs with diff of len > 60s
+    print(n=nrow(.)) %>% # <- visually check for outliers
+    ungroup() -> t_len
+
+ggplot(t_len) +
+    geom_histogram(aes(x = mlen, y = ..density..), fill="grey") +
+    geom_density(aes(x = mlen)) +
+    theme_bw() +
+    theme(axis.text.y = element_blank(),
+          axis.ticks.y = element_blank(),
+          axis.title.y = element_blank()) +
+    xlab("Song length/s") -> p4
+ggsave(filename = "Song_length_density.pdf",
+       plot = p4, dpi = 100, width = 8, height = 6)
+
+

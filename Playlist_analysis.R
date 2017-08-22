@@ -38,12 +38,12 @@ p1 <- ggplot(data = t_freq, aes(x = reorder(artist, n), y = n)) +
     theme(axis.text.y=element_blank(),
           axis.ticks=element_blank(),
           axis.title.y=element_blank())
-ggsave(filename = "artist_popularity_barplot.pdf", 
+ggsave(filename = "Artist_popularity_barplot.pdf", 
        plot = p1, dpi = 100, width = 8, height = 20)
 
 # Wordcloud
 library(wordcloud)
-pdf(file= "artist_popularity_wordcloud.pdf", width = 8, height = 6)
+pdf(file= "Artist_popularity_wordcloud.pdf", width = 8, height = 6)
 wordcloud(t_freq$artist, t_freq$n, 
           scale=c(1.5,.3), 
           random.order = FALSE,

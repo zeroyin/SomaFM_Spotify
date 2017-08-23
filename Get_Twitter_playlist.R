@@ -22,7 +22,7 @@ tlist.song  <- sub(x=tlist, pattern = '.* - (.*?)', replacement = "\\1")
 
 # Save playlist as data list
 playlist <- list(artist = tlist.artist, song = tlist.song)
-save(playlist, file = "playlist.RData")
+# save(playlist, file = "data/playlist.RData")
 
 # Save orginal twitter data for analysis
-save(rt, file = paste0("history_", Sys.Date(), ".RData"))
+save(rt, file = paste0("data/history_", Sys.Date(), ".RData"))

@@ -5,7 +5,8 @@ setwd("~/Dropbox/My_Projects/SomaFM_to_Spotify/")
 library(dplyr)
 
 # Load data
-load("data/history_2017-08-19.RData")
+data_date <- "2017-08-22"
+load(paste0("data/history_", data_date, ".RData"))
 
 # Parse history: artist and song and song length
 text <- gsub(x = rt$text, pattern = '♬ *(.*?) ♬.*', replacement = "\\1") 
@@ -38,12 +39,12 @@ p1 <- ggplot(data = t_freq, aes(x = reorder(artist, n), y = n)) +
     theme(axis.text.y=element_blank(),
           axis.ticks=element_blank(),
           axis.title.y=element_blank())
-ggsave(filename = "figure/artist_popularity_barplot.pdf", 
+ggsave(filename = paste0("figure/artist_popularity_barplot_", data_date, ".pdf"),
        plot = p1, dpi = 100, width = 8, height = 20)
 
 # Wordcloud
 library(wordcloud)
-pdf(file= "figure/artist_popularity_wordcloud.pdf", 
+pdf(file= paste0("figure/artist_popularity_wordcloud_", data_date, ".pdf"),
     width = 8, height = 6)
 wordcloud(t_freq$artist, t_freq$n, 
           scale=c(1.5,.3), 
@@ -62,7 +63,7 @@ tlist %>%
 ggplot(data = t_occur) +
     geom_bar(aes(x = Occurrence), stat = "count", fill = "grey") +
     theme_bw() -> p3
-ggsave(filename = "figure/occurrence_histogram.pdf",
+ggsave(filename = paste0("figure/occurrence_histogram_", data_date, ".pdf"),
        plot = p3, dpi = 100, width = 8, height = 6)
 
 # DJ's fav list
@@ -91,7 +92,7 @@ ggplot(t_len) +
           axis.ticks.y = element_blank(),
           axis.title.y = element_blank()) +
     xlab("Song length/s") -> p4
-ggsave(filename = "figure/song_length_density.pdf",
+ggsave(filename = paste0("figure/song_length_density_", data_date, ".pdf"),
        plot = p4, dpi = 100, width = 8, height = 6)
 
 

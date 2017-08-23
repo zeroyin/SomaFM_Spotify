@@ -24,9 +24,9 @@ tlist %>%
     tally(sort = T) -> t_freq
 
 # Customize color palette to raise contrast
-pal <- brewer.pal(9,"BuGn")
+pal <- brewer.pal(9,"BuGn")[-(1:3)]
 pie(x = rep(1, length(pal)), col = pal) # Visualize palette
-col <- rep(pal, times = table(ceiling(t_freq$n/length(pal))))
+col <- rep(pal, times = table(floor(t_freq$n/ceiling(max(t_freq$n)/length(pal)))))
 
 # bar plot
 library(reshape2)
